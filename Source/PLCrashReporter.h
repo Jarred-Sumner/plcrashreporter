@@ -1,3 +1,10 @@
+// Changes are as follows:
+// - remove references to NSFileManager
+// - do not eagerly create the crash reports directory
+// The intent is to minimize impact on startup time
+// and also load fewer dynamic libraires
+extern void mkdirp(const char *path);
+
 /*
  * Author: Landon Fuller <landonf@plausiblelabs.com>
  *
@@ -123,7 +130,7 @@ typedef struct PLCrashReporterCallbacks {
 
 - (instancetype) initWithConfiguration: (PLCrashReporterConfig *) config;
 
-- (BOOL) hasPendingCrashReport;
+- (BOOL) hasPendingCrashReport PLCR_DEPRECATED;
 
 - (NSData *) loadPendingCrashReportData;
 - (NSData *) loadPendingCrashReportDataAndReturnError: (NSError **) outError;
@@ -134,8 +141,8 @@ typedef struct PLCrashReporterCallbacks {
 - (NSData *) generateLiveReport;
 - (NSData *) generateLiveReportAndReturnError: (NSError **) outError;
 
-- (BOOL) purgePendingCrashReport;
-- (BOOL) purgePendingCrashReportAndReturnError: (NSError **) outError;
+- (BOOL) purgePendingCrashReport PLCR_DEPRECATED;
+- (BOOL) purgePendingCrashReportAndReturnError: (NSError **) outError PLCR_DEPRECATED;
 
 - (BOOL) enableCrashReporter;
 - (BOOL) enableCrashReporterAndReturnError: (NSError **) outError;

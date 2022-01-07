@@ -156,13 +156,26 @@ static plcrash_error_t plcrash_write_report (plcrashreporter_handler_ctx_t *sigc
     plcrash_async_file_t file;
     plcrash_error_t err;
 
-    /* Open the output file */
-    int fd = open(sigctx->path, O_RDWR|O_CREAT|O_TRUNC, 0644);
-    if (fd < 0) {
-        PLCF_DEBUG("Could not open the crashlog output file: %s", strerror(errno));
-        return PLCRASH_EINTERNAL;
-    }
-    
+
+    int fd = 0;
+    int has_retried = 0;
+    retry: {
+     
+        while (true) {
+            /* Open the output file */
+            fd = open(sigctx->path, O_RDWR|O_CREAT|O_TRUNC, 0644);
+            if (fd < 0) {
+                if (!has_retried) {
+                    has_retried = 1;
+                    mkdirp(sigctx->path);
+                    goto retry;
+                }
+                PLCF_DEBUG("Could not open the crashlog output file: %s", strerror(errno));
+                return PLCRASH_EINTERNAL;
+            }
+            break;
+        }
+    }    
     /* Initialize the output context */
     plcrash_async_file_init(&file, fd, MAX_REPORT_BYTES);
     
@@ -455,7 +468,7 @@ static PLCrashReporter *sharedReporter = nil;
  */
 - (BOOL) hasPendingCrashReport {
     /* Check for a live crash report file */
-    return [[NSFileManager defaultManager] fileExistsAtPath: [self crashReportPath]];
+    return false;
 }
 
 
@@ -499,7 +512,7 @@ static PLCrashReporter *sharedReporter = nil;
  * @return Returns YES on success, or NO on error.
  */
 - (BOOL) purgePendingCrashReport {
-    return [self purgePendingCrashReportAndReturnError: NULL];
+    return false;
 }
 
 
@@ -509,7 +522,7 @@ static PLCrashReporter *sharedReporter = nil;
  * @return Returns YES on success, or NO on error.
  */
 - (BOOL) purgePendingCrashReportAndReturnError: (NSError **) outError {
-    return [[NSFileManager defaultManager] removeItemAtPath: [self crashReportPath] error: outError];
+    return false;
 }
 
 
@@ -575,9 +588,6 @@ static PLCrashReporter *sharedReporter = nil;
     if (_enabled)
         [NSException raise: PLCrashReporterException format: @"The crash reporter has already been enabled"];
 
-    /* Create the directory tree */
-    if (![self populateCrashReportDirectoryAndReturnError: outError])
-        return NO;
 
     /* Set up the signal handler context */
     signal_handler_context.path = strdup([[self crashReportPath] UTF8String]); // NOTE: would leak if this were not a singleton struct
